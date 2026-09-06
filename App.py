@@ -5,25 +5,29 @@ from flask import Flask, render_template, request
 import os
 import numpy as np
 import tensorflow as tf
+
 from tensorflow.keras.utils import load_img, img_to_array
 from tensorflow.keras.applications import mobilenet_v2
 from werkzeug.utils import secure_filename
 
 
-# ==============================
+# ==================================================
 # LOAD TRAINED MODEL
-# ==============================
+# ==================================================
+
+MODEL_PATH = "fruit_vegetable_model.keras"
 
 model = tf.keras.models.load_model(
-    "fruit_vegetable_model.keras",
+    MODEL_PATH,
     custom_objects={
         "preprocess_input": mobilenet_v2.preprocess_input
     },
     compile=False
 )
 
+
 # ==================================================
-# CREATE FLASK APP
+# CREATE FLASK APPLICATION
 # ==================================================
 
 app = Flask(__name__)
@@ -33,11 +37,14 @@ app = Flask(__name__)
 # UPLOAD FOLDER
 # ==================================================
 
-UPLOAD_FOLDER = "static/uploads"
+UPLOAD_FOLDER = os.path.join("static", "uploads")
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(
+    app.config["UPLOAD_FOLDER"],
+    exist_ok=True
+)
 
 
 # ==================================================
@@ -46,7 +53,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # ==================================================
 
 class_names = [
-
     "FreshApple",
     "FreshBanana",
     "FreshBellpepper",
@@ -68,7 +74,6 @@ class_names = [
     "RottenPotato",
     "RottenStrawberry",
     "RottenTomato"
-
 ]
 
 
@@ -84,7 +89,6 @@ def home():
     image_path = None
     top_predictions = []
 
-
     # ==============================================
     # WHEN USER UPLOADS AN IMAGE
     # ==============================================
@@ -93,13 +97,11 @@ def home():
 
         image = request.files.get("image")
 
-
         # ==========================================
         # CHECK IMAGE
         # ==========================================
 
         if image and image.filename != "":
-
 
             # ======================================
             # SAVE IMAGE
@@ -114,49 +116,50 @@ def home():
                 filename
             )
 
-            image.save(file_path)
+            image.save(
+                file_path
+            )
 
-
-            # Path sent to HTML page
+            # Path sent to HTML
             image_path = file_path
 
 
             # ======================================
-            # LOAD AND PREPARE IMAGE
+            # LOAD IMAGE
             # ======================================
 
             img = load_img(
-
                 file_path,
-
                 target_size=(128, 128)
-
             )
 
 
-            # Convert image to NumPy array
+            # ======================================
+            # CONVERT IMAGE TO NUMPY ARRAY
+            # ======================================
+
             img_array = img_to_array(
                 img
             )
 
 
-            # Add batch dimension
+            # ======================================
+            # ADD BATCH DIMENSION
+            # ======================================
+
             img_array = np.expand_dims(
-
                 img_array,
-
                 axis=0
-
             )
 
 
             # ======================================
-            # MOBILENETV2 PREPROCESSING
+            # IMPORTANT:
+            # DO NOT APPLY preprocess_input HERE.
+            #
+            # Your saved model already contains the
+            # MobileNetV2 preprocessing Lambda layer.
             # ======================================
-
-            img_array = preprocess_input(
-                img_array
-            )
 
 
             # ======================================
@@ -164,11 +167,8 @@ def home():
             # ======================================
 
             predictions = model.predict(
-
                 img_array,
-
                 verbose=0
-
             )
 
 
@@ -176,10 +176,10 @@ def home():
             # GET BEST PREDICTION
             # ======================================
 
-            predicted_index = np.argmax(
-
-                predictions[0]
-
+            predicted_index = int(
+                np.argmax(
+                    predictions[0]
+                )
             )
 
 
@@ -193,22 +193,18 @@ def home():
             # ======================================
 
             confidence = float(
-
                 predictions[0][
                     predicted_index
                 ] * 100
-
             )
 
 
             # ======================================
-            # TOP 3 PREDICTIONS
+            # GET TOP 3 PREDICTIONS
             # ======================================
 
             top_indices = np.argsort(
-
                 predictions[0]
-
             )[-3:][::-1]
 
 
@@ -219,27 +215,20 @@ def home():
             for index in top_indices:
 
                 top_predictions.append(
-
                     {
-
                         "name": class_names[
-                            index
+                            int(index)
                         ],
 
                         "confidence": round(
-
                             float(
                                 predictions[0][
                                     index
                                 ] * 100
                             ),
-
                             2
-
                         )
-
                     }
-
                 )
 
 
@@ -248,17 +237,11 @@ def home():
     # ==================================================
 
     return render_template(
-
         "index.html",
-
         prediction=prediction,
-
         confidence=confidence,
-
         image_path=image_path,
-
         top_predictions=top_predictions
-
     )
 
 
@@ -269,7 +252,5 @@ def home():
 if __name__ == "__main__":
 
     app.run(
-
         debug=True
-
     )
