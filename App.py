@@ -5,22 +5,22 @@ from flask import Flask, render_template, request
 import os
 import numpy as np
 import tensorflow as tf
-
 from tensorflow.keras.utils import load_img, img_to_array
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
-
+from tensorflow.keras.applications import mobilenet_v2
 from werkzeug.utils import secure_filename
 
 
-# ==================================================
+# ==============================
 # LOAD TRAINED MODEL
-# ==================================================
+# ==============================
 
 model = tf.keras.models.load_model(
     "fruit_vegetable_model.keras",
+    custom_objects={
+        "preprocess_input": mobilenet_v2.preprocess_input
+    },
     compile=False
 )
-
 
 # ==================================================
 # CREATE FLASK APP
