@@ -1,25 +1,39 @@
 #cd "C:\Users\hz605\OneDrive\Desktop\ML PROJECT"
 #py App.py          py -3.12 App.py
 import os
+import uuid
+import traceback
 
-# Force TensorFlow to use CPU only on Render
+# ==================================================
+# FORCE TENSORFLOW TO USE CPU ONLY
+# ==================================================
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
-from flask import Flask, render_template, request
+
+# ==================================================
+# IMPORT LIBRARIES
+# ==================================================
+
+from flask import Flask, render_template, request, url_for
+
 import numpy as np
 import tensorflow as tf
+
 from tensorflow.keras.utils import load_img, img_to_array
 from tensorflow.keras.applications import mobilenet_v2
-from werkzeug.utils import secure_filename
 
+from werkzeug.utils import secure_filename
 
 
 # ==================================================
 # BASE DIRECTORY
 # ==================================================
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)
 
 
 # ==================================================
@@ -31,6 +45,9 @@ MODEL_PATH = os.path.join(
     "fruit_vegetable_model.keras"
 )
 
+
+print("Loading trained model...")
+
 model = tf.keras.models.load_model(
     MODEL_PATH,
     custom_objects={
@@ -38,6 +55,8 @@ model = tf.keras.models.load_model(
     },
     compile=False
 )
+
+print("Model loaded successfully!")
 
 
 # ==================================================
@@ -59,10 +78,34 @@ UPLOAD_FOLDER = os.path.join(
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
+
 os.makedirs(
     app.config["UPLOAD_FOLDER"],
     exist_ok=True
 )
+
+
+# ==================================================
+# ALLOWED IMAGE EXTENSIONS
+# ==================================================
+
+ALLOWED_EXTENSIONS = {
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "bmp",
+    "webp"
+}
+
+
+def allowed_file(filename):
+
+    return (
+        "." in filename
+        and filename.rsplit(".", 1)[1].lower()
+        in ALLOWED_EXTENSIONS
+    )
 
 
 # ==================================================
@@ -71,6 +114,7 @@ os.makedirs(
 # ==================================================
 
 class_names = [
+
     "FreshApple",
     "FreshBanana",
     "FreshBellpepper",
@@ -92,6 +136,7 @@ class_names = [
     "RottenPotato",
     "RottenStrawberry",
     "RottenTomato"
+
 ]
 
 
@@ -115,20 +160,44 @@ def home():
 
     if request.method == "POST":
 
+        print("POST request received.")
+
         image = request.files.get("image")
 
 
         # ==========================================
-        # CHECK IMAGE
+        # CHECK IF IMAGE EXISTS
         # ==========================================
 
         if not image or image.filename == "":
 
-            error = "Please select an image before clicking Analyze Image."
+            error = (
+                "Please select an image before "
+                "clicking Analyze Image."
+            )
+
+
+        # ==========================================
+        # CHECK FILE FORMAT
+        # ==========================================
+
+        elif not allowed_file(image.filename):
+
+            error = (
+                "Invalid image format. "
+                "Please upload JPG, JPEG, PNG, "
+                "WEBP, BMP, or GIF."
+            )
+
 
         else:
 
             try:
+
+                print(
+                    f"Processing image: {image.filename}"
+                )
+
 
                 # ==================================
                 # CREATE SAFE UNIQUE FILENAME
@@ -139,7 +208,8 @@ def home():
                 )
 
                 unique_filename = (
-                    f"{uuid.uuid4().hex}_{original_filename}"
+                    f"{uuid.uuid4().hex}_"
+                    f"{original_filename}"
                 )
 
 
@@ -156,6 +226,11 @@ def home():
                     file_path
                 )
 
+                print(
+                    f"Image saved successfully: "
+                    f"{file_path}"
+                )
+
 
                 # ==================================
                 # URL SENT TO HTML
@@ -163,13 +238,17 @@ def home():
 
                 image_path = url_for(
                     "static",
-                    filename=f"uploads/{unique_filename}"
+                    filename=(
+                        f"uploads/{unique_filename}"
+                    )
                 )
 
 
                 # ==================================
                 # LOAD IMAGE
                 # ==================================
+
+                print("Loading image for prediction...")
 
                 img = load_img(
                     file_path,
@@ -196,24 +275,33 @@ def home():
                 )
 
 
-                # ==================================
-                # IMPORTANT:
-                #
-                # DO NOT APPLY preprocess_input HERE.
-                #
-                # Your saved model already contains
-                # the MobileNetV2 preprocessing
-                # Lambda layer.
-                # ==================================
+                print(
+                    f"Image shape: {img_array.shape}"
+                )
 
 
                 # ==================================
                 # MAKE PREDICTION
                 # ==================================
 
+                print(
+                    "Running model prediction..."
+                )
+
                 predictions = model.predict(
                     img_array,
                     verbose=0
+                )
+
+
+                print(
+                    f"Raw prediction shape: "
+                    f"{predictions.shape}"
+                )
+
+
+                print(
+                    "Prediction completed."
                 )
 
 
@@ -228,13 +316,30 @@ def home():
                 )
 
 
-                # Safety check
-                if predicted_index >= len(class_names):
+                print(
+                    f"Predicted index: "
+                    f"{predicted_index}"
+                )
+
+
+                # ==================================
+                # SAFETY CHECK
+                # ==================================
+
+                if (
+                    predicted_index < 0
+                    or predicted_index >= len(class_names)
+                ):
 
                     raise ValueError(
-                        "The model returned an invalid class index."
+                        "The model returned an invalid "
+                        "class index."
                     )
 
+
+                # ==================================
+                # GET PREDICTION NAME
+                # ==================================
 
                 prediction = class_names[
                     predicted_index
@@ -249,6 +354,16 @@ def home():
                     predictions[0][
                         predicted_index
                     ] * 100
+                )
+
+
+                print(
+                    f"Prediction: {prediction}"
+                )
+
+                print(
+                    f"Confidence: "
+                    f"{confidence:.2f}%"
                 )
 
 
@@ -269,29 +384,73 @@ def home():
 
                     index = int(index)
 
-                    top_predictions.append(
-                        {
-                            "name": class_names[
-                                index
-                            ],
 
-                            "confidence": round(
-                                float(
-                                    predictions[0][
-                                        index
-                                    ] * 100
-                                ),
-                                2
-                            )
-                        }
+                    # Additional safety check
+
+                    if (
+                        index >= 0
+                        and index < len(class_names)
+                    ):
+
+                        top_predictions.append(
+                            {
+                                "name":
+                                    class_names[index],
+
+                                "confidence":
+                                    round(
+                                        float(
+                                            predictions[0][
+                                                index
+                                            ] * 100
+                                        ),
+                                        2
+                                    )
+                            }
+                        )
+
+
+                print(
+                    "Top predictions:"
+                )
+
+                for item in top_predictions:
+
+                    print(
+                        f"{item['name']} - "
+                        f"{item['confidence']}%"
                     )
 
+
+            # ======================================
+            # ERROR HANDLING
+            # ======================================
 
             except Exception as e:
 
                 print(
-                    f"Prediction error: {e}"
+                    "\n"
+                    "===================================="
                 )
+
+                print(
+                    "PREDICTION ERROR"
+                )
+
+                print(
+                    "===================================="
+                )
+
+                print(
+                    f"Error: {str(e)}"
+                )
+
+                traceback.print_exc()
+
+                print(
+                    "====================================\n"
+                )
+
 
                 error = (
                     "Unable to analyze this image. "
@@ -305,16 +464,21 @@ def home():
 
     return render_template(
         "index.html",
+
         prediction=prediction,
+
         confidence=confidence,
+
         image_path=image_path,
+
         top_predictions=top_predictions,
+
         error=error
     )
 
 
 # ==================================================
-# RUN FLASK APPLICATION
+# RUN FLASK APPLICATION LOCALLY
 # ==================================================
 
 if __name__ == "__main__":
