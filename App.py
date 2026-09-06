@@ -1,8 +1,9 @@
 #cd "C:\Users\hz605\OneDrive\Desktop\ML PROJECT"
 #py App.py          py -3.12 App.py
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, url_for
 import os
+import uuid
 import numpy as np
 import tensorflow as tf
 
@@ -12,10 +13,20 @@ from werkzeug.utils import secure_filename
 
 
 # ==================================================
+# BASE DIRECTORY
+# ==================================================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+# ==================================================
 # LOAD TRAINED MODEL
 # ==================================================
 
-MODEL_PATH = "fruit_vegetable_model.keras"
+MODEL_PATH = os.path.join(
+    BASE_DIR,
+    "fruit_vegetable_model.keras"
+)
 
 model = tf.keras.models.load_model(
     MODEL_PATH,
@@ -37,7 +48,11 @@ app = Flask(__name__)
 # UPLOAD FOLDER
 # ==================================================
 
-UPLOAD_FOLDER = os.path.join("static", "uploads")
+UPLOAD_FOLDER = os.path.join(
+    BASE_DIR,
+    "static",
+    "uploads"
+)
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
@@ -88,6 +103,8 @@ def home():
     confidence = None
     image_path = None
     top_predictions = []
+    error = None
+
 
     # ==============================================
     # WHEN USER UPLOADS AN IMAGE
@@ -97,138 +114,185 @@ def home():
 
         image = request.files.get("image")
 
+
         # ==========================================
         # CHECK IMAGE
         # ==========================================
 
-        if image and image.filename != "":
+        if not image or image.filename == "":
 
-            # ======================================
-            # SAVE IMAGE
-            # ======================================
+            error = "Please select an image before clicking Analyze Image."
 
-            filename = secure_filename(
-                image.filename
-            )
+        else:
 
-            file_path = os.path.join(
-                app.config["UPLOAD_FOLDER"],
-                filename
-            )
+            try:
 
-            image.save(
-                file_path
-            )
+                # ==================================
+                # CREATE SAFE UNIQUE FILENAME
+                # ==================================
 
-            # Path sent to HTML
-            image_path = file_path
-
-
-            # ======================================
-            # LOAD IMAGE
-            # ======================================
-
-            img = load_img(
-                file_path,
-                target_size=(128, 128)
-            )
-
-
-            # ======================================
-            # CONVERT IMAGE TO NUMPY ARRAY
-            # ======================================
-
-            img_array = img_to_array(
-                img
-            )
-
-
-            # ======================================
-            # ADD BATCH DIMENSION
-            # ======================================
-
-            img_array = np.expand_dims(
-                img_array,
-                axis=0
-            )
-
-
-            # ======================================
-            # IMPORTANT:
-            # DO NOT APPLY preprocess_input HERE.
-            #
-            # Your saved model already contains the
-            # MobileNetV2 preprocessing Lambda layer.
-            # ======================================
-
-
-            # ======================================
-            # MAKE PREDICTION
-            # ======================================
-
-            predictions = model.predict(
-                img_array,
-                verbose=0
-            )
-
-
-            # ======================================
-            # GET BEST PREDICTION
-            # ======================================
-
-            predicted_index = int(
-                np.argmax(
-                    predictions[0]
+                original_filename = secure_filename(
+                    image.filename
                 )
-            )
+
+                unique_filename = (
+                    f"{uuid.uuid4().hex}_{original_filename}"
+                )
 
 
-            prediction = class_names[
-                predicted_index
-            ]
+                # ==================================
+                # SAVE IMAGE
+                # ==================================
+
+                file_path = os.path.join(
+                    app.config["UPLOAD_FOLDER"],
+                    unique_filename
+                )
+
+                image.save(
+                    file_path
+                )
 
 
-            # ======================================
-            # CONFIDENCE PERCENTAGE
-            # ======================================
+                # ==================================
+                # URL SENT TO HTML
+                # ==================================
 
-            confidence = float(
-                predictions[0][
+                image_path = url_for(
+                    "static",
+                    filename=f"uploads/{unique_filename}"
+                )
+
+
+                # ==================================
+                # LOAD IMAGE
+                # ==================================
+
+                img = load_img(
+                    file_path,
+                    target_size=(128, 128)
+                )
+
+
+                # ==================================
+                # CONVERT IMAGE TO NUMPY ARRAY
+                # ==================================
+
+                img_array = img_to_array(
+                    img
+                )
+
+
+                # ==================================
+                # ADD BATCH DIMENSION
+                # ==================================
+
+                img_array = np.expand_dims(
+                    img_array,
+                    axis=0
+                )
+
+
+                # ==================================
+                # IMPORTANT:
+                #
+                # DO NOT APPLY preprocess_input HERE.
+                #
+                # Your saved model already contains
+                # the MobileNetV2 preprocessing
+                # Lambda layer.
+                # ==================================
+
+
+                # ==================================
+                # MAKE PREDICTION
+                # ==================================
+
+                predictions = model.predict(
+                    img_array,
+                    verbose=0
+                )
+
+
+                # ==================================
+                # GET BEST PREDICTION
+                # ==================================
+
+                predicted_index = int(
+                    np.argmax(
+                        predictions[0]
+                    )
+                )
+
+
+                # Safety check
+                if predicted_index >= len(class_names):
+
+                    raise ValueError(
+                        "The model returned an invalid class index."
+                    )
+
+
+                prediction = class_names[
                     predicted_index
-                ] * 100
-            )
+                ]
 
 
-            # ======================================
-            # GET TOP 3 PREDICTIONS
-            # ======================================
+                # ==================================
+                # CONFIDENCE PERCENTAGE
+                # ==================================
 
-            top_indices = np.argsort(
-                predictions[0]
-            )[-3:][::-1]
+                confidence = float(
+                    predictions[0][
+                        predicted_index
+                    ] * 100
+                )
 
 
-            # ======================================
-            # SAVE TOP 3 RESULTS
-            # ======================================
+                # ==================================
+                # GET TOP 3 PREDICTIONS
+                # ==================================
 
-            for index in top_indices:
+                top_indices = np.argsort(
+                    predictions[0]
+                )[-3:][::-1]
 
-                top_predictions.append(
-                    {
-                        "name": class_names[
-                            int(index)
-                        ],
 
-                        "confidence": round(
-                            float(
-                                predictions[0][
-                                    index
-                                ] * 100
-                            ),
-                            2
-                        )
-                    }
+                # ==================================
+                # SAVE TOP 3 RESULTS
+                # ==================================
+
+                for index in top_indices:
+
+                    index = int(index)
+
+                    top_predictions.append(
+                        {
+                            "name": class_names[
+                                index
+                            ],
+
+                            "confidence": round(
+                                float(
+                                    predictions[0][
+                                        index
+                                    ] * 100
+                                ),
+                                2
+                            )
+                        }
+                    )
+
+
+            except Exception as e:
+
+                print(
+                    f"Prediction error: {e}"
+                )
+
+                error = (
+                    "Unable to analyze this image. "
+                    "Please try another image."
                 )
 
 
@@ -241,7 +305,8 @@ def home():
         prediction=prediction,
         confidence=confidence,
         image_path=image_path,
-        top_predictions=top_predictions
+        top_predictions=top_predictions,
+        error=error
     )
 
 
