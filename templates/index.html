@@ -1,167 +1,459 @@
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
 
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
-    <title>Fruits & Vegetables ML Model</title>
+    <title>Fresh or Rotten? | Fruit & Vegetable Classifier</title>
 
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
-
 </head>
 
 
 <body>
 
-    <div class="container">
-
-        <!-- TITLE -->
-
-        <h1>🍎 FRUITS & 🥦 VEGETABLES CLASSIFICATION ML MODEL</h1>
-
-
-        <p class="subtitle">
-
-            Upload an image to identify the fruit or vegetable
-            and determine whether it is FRESH OR ROTTEN.
-
-        </p>
-
+    <div class="page-wrapper">
 
         <!-- ============================== -->
-        <!-- UPLOAD CARD -->
+        <!-- HEADER / HERO SECTION -->
         <!-- ============================== -->
 
-        <div class="card">
+        <header class="hero">
 
-            <h2>Upload an Image</h2>
-
-            <form method="POST"
-                  enctype="multipart/form-data">
-
-                <input
-                    type="file"
-                    name="image"
-                    accept="image/*"
-                    required
-                >
-
-                <br>
-
-                <button type="submit">
-
-                    🔍 Analyze Image
-
-                </button>
-
-            </form>
-
-        </div>
-
-
-        <!-- ============================== -->
-        <!-- RESULT -->
-        <!-- ============================== -->
-
-        {% if image_path %}
-
-        <div class="result-card">
-
-
-            <!-- UPLOADED IMAGE -->
-
-            <h2>Uploaded Image</h2>
-
-            <img
-                src="{{ image_path }}"
-                alt="Uploaded Image"
-                class="uploaded-image"
-            >
-
-
-            <!-- ML RESULT -->
-
-            <h2>ML Result</h2>
-
-
-            <!-- MAIN PREDICTION -->
-
-            <div class="prediction">
-
-                🤖 {{ prediction }}
-
+            <div class="hero-badge">
+                🤖 AI-Powered Image Classification
             </div>
 
+            <h1>
+                🍎 Fresh or Rotten?
+            </h1>
 
-            <!-- CONFIDENCE -->
+            <h2>
+                Fruit & Vegetable Classifier
+            </h2>
 
-            {% if prediction %}
+            <p class="subtitle">
+                Upload a photo of a fruit or vegetable and let our
+                machine learning model identify it and determine
+                whether it is <strong>fresh</strong> or <strong>rotten</strong>.
+            </p>
 
-            <div class="confidence">
-
-                <h3>
-
-                    Confidence:
-                    {{ "%.2f"|format(confidence) }}%
-
-                </h3>
-
-            </div>
+        </header>
 
 
-            <!-- TOP 3 PREDICTIONS -->
+        <main class="container">
 
-            <div class="top-predictions">
+            <!-- ============================== -->
+            <!-- UPLOAD SECTION -->
+            <!-- ============================== -->
 
-                <h3>Top 3 Predictions</h3>
+            <section class="upload-card">
 
-                {% for item in top_predictions %}
+                <div class="section-icon">
+                    📸
+                </div>
 
-                <p>
+                <h2>Upload an Image</h2>
 
-                    <strong>{{ item.name }}</strong>
-
-                    — {{ item.confidence }}%
-
+                <p class="upload-description">
+                    Choose a clear image of a fruit or vegetable to analyze.
                 </p>
 
-                {% endfor %}
 
-            </div>
+                <form method="POST"
+                      enctype="multipart/form-data"
+                      id="upload-form">
+
+                    <label for="image"
+                           class="file-upload">
+
+                        <span class="upload-icon">
+                            ☁️
+                        </span>
+
+                        <span class="upload-text">
+                            Click here to choose an image
+                        </span>
+
+                        <span class="upload-small-text">
+                            JPG, JPEG, PNG and other image formats
+                        </span>
+
+                    </label>
+
+
+                    <input
+                        type="file"
+                        id="image"
+                        name="image"
+                        accept="image/*"
+                        required
+                    >
+
+
+                    <!-- Image Preview -->
+                    <div id="preview-container"
+                         class="preview-container">
+
+                        <img id="image-preview"
+                             src=""
+                             alt="Image Preview">
+
+                    </div>
+
+
+                    <button type="submit"
+                            id="analyze-button"
+                            class="analyze-button">
+
+                        <span id="button-text">
+                            🔍 Analyze Image
+                        </span>
+
+                    </button>
+
+                </form>
+
+            </section>
+
+
+
+            <!-- ============================== -->
+            <!-- RESULTS SECTION -->
+            <!-- ============================== -->
+
+            {% if image_path %}
+
+            <section class="results-section">
+
+
+                <!-- UPLOADED IMAGE -->
+
+                <div class="image-result-card">
+
+                    <h2>
+                        📷 Uploaded Image
+                    </h2>
+
+                    <div class="image-wrapper">
+
+                        <img
+                            src="{{ image_path }}"
+                            alt="Uploaded fruit or vegetable"
+                            class="uploaded-image"
+                        >
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- AI RESULT -->
+
+                <div class="prediction-result-card">
+
+                    <div class="result-header">
+
+                        <span class="result-icon">
+                            🤖
+                        </span>
+
+                        <div>
+
+                            <p class="result-label">
+                                AI PREDICTION
+                            </p>
+
+                            <h2>
+                                Classification Result
+                            </h2>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- MAIN PREDICTION -->
+
+                    {% if prediction %}
+
+                    <div class="main-prediction">
+
+                        <p class="prediction-label">
+                            The image is classified as:
+                        </p>
+
+                        <div class="prediction-name">
+
+                            {% if "Fresh" in prediction %}
+                                🟢
+                            {% else %}
+                                🔴
+                            {% endif %}
+
+                            {{ prediction }}
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- CONFIDENCE -->
+
+                    <div class="confidence-card">
+
+                        <div class="confidence-top">
+
+                            <span>
+                                🎯 Prediction Confidence
+                            </span>
+
+                            <strong>
+                                {{ "%.2f"|format(confidence) }}%
+                            </strong>
+
+                        </div>
+
+
+                        <div class="confidence-bar">
+
+                            <div
+                                class="confidence-progress"
+                                style="width: {{ confidence }}%;"
+                            ></div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- TOP 3 PREDICTIONS -->
+
+                    {% if top_predictions %}
+
+                    <div class="top-predictions">
+
+                        <h3>
+                            📊 Top 3 Predictions
+                        </h3>
+
+
+                        {% for item in top_predictions %}
+
+                        <div class="prediction-row">
+
+                            <div class="prediction-row-name">
+
+                                {% if loop.index == 1 %}
+                                    🥇
+                                {% elif loop.index == 2 %}
+                                    🥈
+                                {% else %}
+                                    🥉
+                                {% endif %}
+
+                                <span>
+                                    {{ item.name }}
+                                </span>
+
+                            </div>
+
+
+                            <div class="prediction-row-confidence">
+
+                                {{ "%.2f"|format(item.confidence) }}%
+
+                            </div>
+
+                        </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                    {% endif %}
+
+                    {% endif %}
+
+                </div>
+
+            </section>
 
             {% endif %}
 
 
-        </div>
+            <!-- ============================== -->
+            <!-- INFORMATION SECTION -->
+            <!-- ============================== -->
 
-        {% endif %}
+            <section class="info-section">
 
+                <div class="info-card">
+
+                    <span class="info-icon">
+                        📤
+                    </span>
+
+                    <h3>
+                        1. Upload
+                    </h3>
+
+                    <p>
+                        Upload a clear image of a fruit or vegetable.
+                    </p>
+
+                </div>
+
+
+                <div class="info-card">
+
+                    <span class="info-icon">
+                        🤖
+                    </span>
+
+                    <h3>
+                        2. AI Analysis
+                    </h3>
+
+                    <p>
+                        Our trained machine learning model analyzes
+                        the uploaded image.
+                    </p>
+
+                </div>
+
+
+                <div class="info-card">
+
+                    <span class="info-icon">
+                        📊
+                    </span>
+
+                    <h3>
+                        3. Get Results
+                    </h3>
+
+                    <p>
+                        View the predicted class, confidence score,
+                        and top three predictions.
+                    </p>
+
+                </div>
+
+            </section>
+
+        </main>
+
+
+        <!-- ============================== -->
+        <!-- FOOTER -->
+        <!-- ============================== -->
+
+        <footer>
+
+            <p>
+                🤖 Fruit & Vegetable Classification System
+            </p>
+
+            <p class="footer-small">
+                Powered by Machine Learning
+            </p>
+
+            <p class="made-by">
+                MADE BY: HASSAN ZAMAN
+            </p>
+
+        </footer>
 
     </div>
 
 
-    <!-- FOOTER -->
 
-    <center>
+    <!-- ============================== -->
+    <!-- JAVASCRIPT -->
+    <!-- ============================== -->
 
-        <h3
-            style="
-                font-style: italic;
-                font-family: 'Times New Roman', Times, serif;
-            "
-        >
+    <script>
 
-            MADE BY: HASSAN ZAMAN
+        const imageInput = document.getElementById("image");
 
-        </h3>
+        const previewContainer =
+            document.getElementById("preview-container");
 
-    </center>
+        const imagePreview =
+            document.getElementById("image-preview");
+
+        const uploadForm =
+            document.getElementById("upload-form");
+
+        const analyzeButton =
+            document.getElementById("analyze-button");
+
+        const buttonText =
+            document.getElementById("button-text");
+
+
+        // ==========================================
+        // IMAGE PREVIEW
+        // ==========================================
+
+        imageInput.addEventListener(
+            "change",
+            function () {
+
+                const file = this.files[0];
+
+                if (file) {
+
+                    const reader =
+                        new FileReader();
+
+
+                    reader.onload =
+                        function (event) {
+
+                            imagePreview.src =
+                                event.target.result;
+
+                            previewContainer.style.display =
+                                "block";
+
+                        };
+
+
+                    reader.readAsDataURL(file);
+
+                }
+
+            }
+        );
+
+
+        // ==========================================
+        // LOADING STATE
+        // ==========================================
+
+        uploadForm.addEventListener(
+            "submit",
+            function () {
+
+                analyzeButton.disabled = true;
+
+                buttonText.innerHTML =
+                    "🤖 Analyzing Image... Please wait";
+
+            }
+        );
+
+    </script>
 
 
 </body>
