@@ -1,11 +1,17 @@
 #cd "C:\Users\hz605\OneDrive\Desktop\ML PROJECT"
 #py App.py          py -3.12 App.py
+# ==================================================
+# App.py
+# ==================================================
+
 import os
 import uuid
 import traceback
 
+
 # ==================================================
 # FORCE TENSORFLOW TO USE CPU ONLY
+# IMPORTANT: MUST BE BEFORE importing TensorFlow
 # ==================================================
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -28,6 +34,21 @@ from werkzeug.utils import secure_filename
 
 
 # ==================================================
+# TENSORFLOW CPU SETTINGS
+# ==================================================
+
+try:
+
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+
+except Exception:
+
+    pass
+
+
+# ==================================================
 # BASE DIRECTORY
 # ==================================================
 
@@ -46,17 +67,26 @@ MODEL_PATH = os.path.join(
 )
 
 
-print("Loading trained model...")
+print("Loading trained model...", flush=True)
+
 
 model = tf.keras.models.load_model(
+
     MODEL_PATH,
+
     custom_objects={
-        "preprocess_input": mobilenet_v2.preprocess_input
+        "preprocess_input":
+            mobilenet_v2.preprocess_input
     },
+
     compile=False
 )
 
-print("Model loaded successfully!")
+
+print(
+    "Model loaded successfully!",
+    flush=True
+)
 
 
 # ==================================================
@@ -76,13 +106,22 @@ UPLOAD_FOLDER = os.path.join(
     "uploads"
 )
 
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+app.config[
+    "UPLOAD_FOLDER"
+] = UPLOAD_FOLDER
 
 
 os.makedirs(
-    app.config["UPLOAD_FOLDER"],
+    UPLOAD_FOLDER,
     exist_ok=True
 )
+
+
+# Optional upload size limit
+app.config[
+    "MAX_CONTENT_LENGTH"
+] = 10 * 1024 * 1024
 
 
 # ==================================================
@@ -90,20 +129,34 @@ os.makedirs(
 # ==================================================
 
 ALLOWED_EXTENSIONS = {
+
     "png",
     "jpg",
     "jpeg",
     "gif",
     "bmp",
     "webp"
+
 }
 
+
+# ==================================================
+# CHECK ALLOWED FILE
+# ==================================================
 
 def allowed_file(filename):
 
     return (
+
         "." in filename
-        and filename.rsplit(".", 1)[1].lower()
+
+        and
+
+        filename.rsplit(
+            ".",
+            1
+        )[1].lower()
+
         in ALLOWED_EXTENSIONS
     )
 
@@ -144,13 +197,30 @@ class_names = [
 # HOME PAGE
 # ==================================================
 
-@app.route("/", methods=["GET", "POST"])
+@app.route(
+    "/",
+    methods=[
+        "GET",
+        "POST"
+    ]
+)
+
+
 def home():
 
+
+    # ==============================================
+    # DEFAULT VALUES
+    # ==============================================
+
     prediction = None
+
     confidence = None
+
     image_path = None
+
     top_predictions = []
+
     error = None
 
 
@@ -160,20 +230,38 @@ def home():
 
     if request.method == "POST":
 
-        print("POST request received.")
 
-        image = request.files.get("image")
+        print(
+            "POST request received.",
+            flush=True
+        )
+
+
+        image = request.files.get(
+            "image"
+        )
 
 
         # ==========================================
         # CHECK IF IMAGE EXISTS
         # ==========================================
 
-        if not image or image.filename == "":
+        if (
+
+            not image
+
+            or
+
+            image.filename == ""
+
+        ):
+
 
             error = (
+
                 "Please select an image before "
                 "clicking Analyze Image."
+
             )
 
 
@@ -181,21 +269,34 @@ def home():
         # CHECK FILE FORMAT
         # ==========================================
 
-        elif not allowed_file(image.filename):
+        elif not allowed_file(
+            image.filename
+        ):
+
 
             error = (
+
                 "Invalid image format. "
                 "Please upload JPG, JPEG, PNG, "
                 "WEBP, BMP, or GIF."
+
             )
 
 
+        # ==========================================
+        # PROCESS IMAGE
+        # ==========================================
+
         else:
+
 
             try:
 
+
                 print(
-                    f"Processing image: {image.filename}"
+                    f"Processing image: "
+                    f"{image.filename}",
+                    flush=True
                 )
 
 
@@ -203,13 +304,18 @@ def home():
                 # CREATE SAFE UNIQUE FILENAME
                 # ==================================
 
-                original_filename = secure_filename(
-                    image.filename
+                original_filename = (
+                    secure_filename(
+                        image.filename
+                    )
                 )
 
+
                 unique_filename = (
+
                     f"{uuid.uuid4().hex}_"
                     f"{original_filename}"
+
                 )
 
 
@@ -218,17 +324,25 @@ def home():
                 # ==================================
 
                 file_path = os.path.join(
-                    app.config["UPLOAD_FOLDER"],
+
+                    app.config[
+                        "UPLOAD_FOLDER"
+                    ],
+
                     unique_filename
+
                 )
+
 
                 image.save(
                     file_path
                 )
 
+
                 print(
-                    f"Image saved successfully: "
-                    f"{file_path}"
+                    f"Image saved: "
+                    f"{file_path}",
+                    flush=True
                 )
 
 
@@ -237,10 +351,14 @@ def home():
                 # ==================================
 
                 image_path = url_for(
+
                     "static",
+
                     filename=(
-                        f"uploads/{unique_filename}"
+                        f"uploads/"
+                        f"{unique_filename}"
                     )
+
                 )
 
 
@@ -248,11 +366,21 @@ def home():
                 # LOAD IMAGE
                 # ==================================
 
-                print("Loading image for prediction...")
+                print(
+                    "Loading image for prediction...",
+                    flush=True
+                )
+
 
                 img = load_img(
+
                     file_path,
-                    target_size=(128, 128)
+
+                    target_size=(
+                        128,
+                        128
+                    )
+
                 )
 
 
@@ -270,13 +398,26 @@ def home():
                 # ==================================
 
                 img_array = np.expand_dims(
+
                     img_array,
+
                     axis=0
+
+                )
+
+
+                # Make sure TensorFlow receives
+                # float32 data
+
+                img_array = img_array.astype(
+                    np.float32
                 )
 
 
                 print(
-                    f"Image shape: {img_array.shape}"
+                    f"Image shape: "
+                    f"{img_array.shape}",
+                    flush=True
                 )
 
 
@@ -285,23 +426,34 @@ def home():
                 # ==================================
 
                 print(
-                    "Running model prediction..."
+                    "Running model prediction...",
+                    flush=True
                 )
 
-                predictions = model.predict(
+
+                # IMPORTANT:
+                # Use direct inference instead of
+                # model.predict()
+
+                predictions = model(
+
                     img_array,
-                    verbose=0
-                )
+
+                    training=False
+
+                ).numpy()
 
 
                 print(
                     f"Raw prediction shape: "
-                    f"{predictions.shape}"
+                    f"{predictions.shape}",
+                    flush=True
                 )
 
 
                 print(
-                    "Prediction completed."
+                    "Prediction completed.",
+                    flush=True
                 )
 
 
@@ -310,15 +462,18 @@ def home():
                 # ==================================
 
                 predicted_index = int(
+
                     np.argmax(
                         predictions[0]
                     )
+
                 )
 
 
                 print(
                     f"Predicted index: "
-                    f"{predicted_index}"
+                    f"{predicted_index}",
+                    flush=True
                 )
 
 
@@ -327,13 +482,23 @@ def home():
                 # ==================================
 
                 if (
+
                     predicted_index < 0
-                    or predicted_index >= len(class_names)
+
+                    or
+
+                    predicted_index >= len(
+                        class_names
+                    )
+
                 ):
 
+
                     raise ValueError(
-                        "The model returned an invalid "
-                        "class index."
+
+                        "The model returned an "
+                        "invalid class index."
+
                     )
 
 
@@ -351,19 +516,27 @@ def home():
                 # ==================================
 
                 confidence = float(
+
                     predictions[0][
                         predicted_index
-                    ] * 100
+                    ]
+
+                    * 100
+
                 )
 
 
                 print(
-                    f"Prediction: {prediction}"
+                    f"Prediction: "
+                    f"{prediction}",
+                    flush=True
                 )
+
 
                 print(
                     f"Confidence: "
-                    f"{confidence:.2f}%"
+                    f"{confidence:.2f}%",
+                    flush=True
                 )
 
 
@@ -372,7 +545,9 @@ def home():
                 # ==================================
 
                 top_indices = np.argsort(
+
                     predictions[0]
+
                 )[-3:][::-1]
 
 
@@ -382,43 +557,77 @@ def home():
 
                 for index in top_indices:
 
-                    index = int(index)
 
+                    index = int(
+                        index
+                    )
 
-                    # Additional safety check
 
                     if (
+
                         index >= 0
-                        and index < len(class_names)
+
+                        and
+
+                        index < len(
+                            class_names
+                        )
+
                     ):
 
+
                         top_predictions.append(
+
                             {
+
                                 "name":
-                                    class_names[index],
+                                    class_names[
+                                        index
+                                    ],
 
                                 "confidence":
+
                                     round(
+
                                         float(
+
                                             predictions[0][
                                                 index
-                                            ] * 100
+                                            ]
+
+                                            * 100
+
                                         ),
+
                                         2
+
                                     )
+
                             }
+
                         )
 
 
+                # ==================================
+                # PRINT TOP 3 RESULTS
+                # ==================================
+
                 print(
-                    "Top predictions:"
+                    "Top predictions:",
+                    flush=True
                 )
+
 
                 for item in top_predictions:
 
+
                     print(
+
                         f"{item['name']} - "
-                        f"{item['confidence']}%"
+                        f"{item['confidence']}%",
+
+                        flush=True
+
                     )
 
 
@@ -428,33 +637,46 @@ def home():
 
             except Exception as e:
 
+
                 print(
                     "\n"
-                    "===================================="
+                    "====================================",
+                    flush=True
                 )
 
-                print(
-                    "PREDICTION ERROR"
-                )
 
                 print(
-                    "===================================="
+                    "PREDICTION ERROR",
+                    flush=True
                 )
 
+
                 print(
-                    f"Error: {str(e)}"
+                    "====================================",
+                    flush=True
                 )
+
+
+                print(
+                    f"Error: {str(e)}",
+                    flush=True
+                )
+
 
                 traceback.print_exc()
 
+
                 print(
-                    "====================================\n"
+                    "====================================\n",
+                    flush=True
                 )
 
 
                 error = (
+
                     "Unable to analyze this image. "
                     "Please try another image."
+
                 )
 
 
@@ -463,6 +685,7 @@ def home():
     # ==================================================
 
     return render_template(
+
         "index.html",
 
         prediction=prediction,
@@ -474,6 +697,7 @@ def home():
         top_predictions=top_predictions,
 
         error=error
+
     )
 
 
@@ -483,6 +707,9 @@ def home():
 
 if __name__ == "__main__":
 
+
     app.run(
+
         debug=True
+
     )
