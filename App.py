@@ -1,68 +1,52 @@
 #cd "C:\Users\hz605\OneDrive\Desktop\ML PROJECT"
 #py App.py          py -3.12 App.py
-import os
-
-# Reduce TensorFlow resource usage on Render
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
-os.environ["TF_NUM_INTEROP_THREADS"] = "1"
 
 from flask import Flask, render_template, request
+import os
 import numpy as np
 import tensorflow as tf
-from PIL import Image
+
+from tensorflow.keras.utils import load_img, img_to_array
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+
 from werkzeug.utils import secure_filename
-import traceback
 
 
-# ==============================
-# CREATE FLASK APP
-# ==============================
-
-app = Flask(__name__)
-
-# Maximum upload size: 10 MB
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
-
-
-# ==============================
-# UPLOAD FOLDER
-# ==============================
-
-UPLOAD_FOLDER = os.path.join("static", "uploads")
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-
-# ==============================
-# LIMIT TENSORFLOW CPU THREADS
-# ==============================
-
-tf.config.threading.set_intra_op_parallelism_threads(1)
-tf.config.threading.set_inter_op_parallelism_threads(1)
-
-
-# ==============================
-# LOAD MODEL
-# ==============================
-
-print("Loading model...")
+# ==================================================
+# LOAD TRAINED MODEL
+# ==================================================
 
 model = tf.keras.models.load_model(
     "fruit_vegetable_model.keras",
     compile=False
 )
 
-print("Model loaded successfully!")
+
+# ==================================================
+# CREATE FLASK APP
+# ==================================================
+
+app = Flask(__name__)
 
 
-# ==============================
+# ==================================================
+# UPLOAD FOLDER
+# ==================================================
+
+UPLOAD_FOLDER = "static/uploads"
+
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+# ==================================================
 # CLASS NAMES
-# ==============================
+# MUST MATCH GOOGLE COLAB TRAINING ORDER EXACTLY
+# ==================================================
 
 class_names = [
+
     "FreshApple",
     "FreshBanana",
     "FreshBellpepper",
@@ -73,6 +57,7 @@ class_names = [
     "FreshPotato",
     "FreshStrawberry",
     "FreshTomato",
+
     "RottenApple",
     "RottenBanana",
     "RottenBellpepper",
@@ -83,12 +68,13 @@ class_names = [
     "RottenPotato",
     "RottenStrawberry",
     "RottenTomato"
+
 ]
 
 
-# ==============================
+# ==================================================
 # HOME PAGE
-# ==============================
+# ==================================================
 
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -96,111 +82,194 @@ def home():
     prediction = None
     confidence = None
     image_path = None
-    error_message = None
+    top_predictions = []
+
+
+    # ==============================================
+    # WHEN USER UPLOADS AN IMAGE
+    # ==============================================
 
     if request.method == "POST":
 
-        try:
+        image = request.files.get("image")
 
-            print("POST request received")
 
-            image = request.files.get("image")
+        # ==========================================
+        # CHECK IMAGE
+        # ==========================================
 
-            if not image or image.filename == "":
-                error_message = "Please select an image."
+        if image and image.filename != "":
 
-            else:
 
-                # Safe filename
-                filename = secure_filename(image.filename)
+            # ======================================
+            # SAVE IMAGE
+            # ======================================
 
-                file_path = os.path.join(
-                    app.config["UPLOAD_FOLDER"],
-                    filename
-                )
+            filename = secure_filename(
+                image.filename
+            )
 
-                # Save image
-                image.save(file_path)
+            file_path = os.path.join(
+                app.config["UPLOAD_FOLDER"],
+                filename
+            )
 
-                image_path = file_path
+            image.save(file_path)
 
-                print(f"Image saved: {file_path}")
 
-                # ==============================
-                # OPEN IMAGE USING PIL
-                # ==============================
+            # Path sent to HTML page
+            image_path = file_path
 
-                img = Image.open(file_path)
 
-                # Convert to RGB
-                img = img.convert("RGB")
+            # ======================================
+            # LOAD AND PREPARE IMAGE
+            # ======================================
 
-                # Resize
-                img = img.resize((128, 128))
+            img = load_img(
 
-                # Convert to NumPy array
-                img_array = np.array(
-                    img,
-                    dtype=np.float32
-                )
+                file_path,
 
-                # Add batch dimension
-                img_array = np.expand_dims(
-                    img_array,
-                    axis=0
-                )
+                target_size=(128, 128)
 
-                print("Image prepared successfully")
+            )
 
-                # ==============================
-                # PREDICTION
-                # ==============================
 
-                predictions = model(
-                    img_array,
-                    training=False
-                ).numpy()
+            # Convert image to NumPy array
+            img_array = img_to_array(
+                img
+            )
 
-                predicted_index = int(
-                    np.argmax(predictions[0])
-                )
 
-                prediction = class_names[
+            # Add batch dimension
+            img_array = np.expand_dims(
+
+                img_array,
+
+                axis=0
+
+            )
+
+
+            # ======================================
+            # MOBILENETV2 PREPROCESSING
+            # ======================================
+
+            img_array = preprocess_input(
+                img_array
+            )
+
+
+            # ======================================
+            # MAKE PREDICTION
+            # ======================================
+
+            predictions = model.predict(
+
+                img_array,
+
+                verbose=0
+
+            )
+
+
+            # ======================================
+            # GET BEST PREDICTION
+            # ======================================
+
+            predicted_index = np.argmax(
+
+                predictions[0]
+
+            )
+
+
+            prediction = class_names[
+                predicted_index
+            ]
+
+
+            # ======================================
+            # CONFIDENCE PERCENTAGE
+            # ======================================
+
+            confidence = float(
+
+                predictions[0][
                     predicted_index
-                ]
+                ] * 100
 
-                confidence = float(
-                    predictions[0][predicted_index] * 100
+            )
+
+
+            # ======================================
+            # TOP 3 PREDICTIONS
+            # ======================================
+
+            top_indices = np.argsort(
+
+                predictions[0]
+
+            )[-3:][::-1]
+
+
+            # ======================================
+            # SAVE TOP 3 RESULTS
+            # ======================================
+
+            for index in top_indices:
+
+                top_predictions.append(
+
+                    {
+
+                        "name": class_names[
+                            index
+                        ],
+
+                        "confidence": round(
+
+                            float(
+                                predictions[0][
+                                    index
+                                ] * 100
+                            ),
+
+                            2
+
+                        )
+
+                    }
+
                 )
 
-                print(
-                    f"Prediction: {prediction}"
-                )
 
-                print(
-                    f"Confidence: {confidence}"
-                )
-
-        except Exception as e:
-
-            print("ERROR DURING PREDICTION:")
-            print(traceback.format_exc())
-
-            error_message = str(e)
-
+    # ==================================================
+    # SEND DATA TO HTML
+    # ==================================================
 
     return render_template(
+
         "index.html",
+
         prediction=prediction,
+
         confidence=confidence,
+
         image_path=image_path,
-        error_message=error_message
+
+        top_predictions=top_predictions
+
     )
 
 
-# ==============================
-# RUN APP
-# ==============================
+# ==================================================
+# RUN FLASK APPLICATION
+# ==================================================
 
 if __name__ == "__main__":
-    app.run()
+
+    app.run(
+
+        debug=True
+
+    )

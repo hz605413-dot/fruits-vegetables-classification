@@ -1,53 +1,169 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
-    <title>Fruits & Vegetables ML MODEL</title>
+
+    <title>Fruits & Vegetables ML Model</title>
+
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
+
 </head>
+
+
 <body>
+
     <div class="container">
-        <h1>🍎FRUITS & 🥦VEGETABLES CLASSIFICATION ML MODEL</h1>
+
+        <!-- TITLE -->
+
+        <h1>🍎 FRUITS & 🥦 VEGETABLES CLASSIFICATION ML MODEL</h1>
+
+
         <p class="subtitle">
-            Upload an image to identify the FRUITS & VEGETABLES
-            and determine if it is FRESH OR ROTTEN.
+
+            Upload an image to identify the fruit or vegetable
+            and determine whether it is FRESH OR ROTTEN.
+
         </p>
+
+
+        <!-- ============================== -->
         <!-- UPLOAD CARD -->
+        <!-- ============================== -->
+
         <div class="card">
+
             <h2>Upload an Image</h2>
+
             <form method="POST"
                   enctype="multipart/form-data">
+
                 <input
                     type="file"
                     name="image"
                     accept="image/*"
                     required
                 >
+
                 <br>
+
                 <button type="submit">
+
                     🔍 Analyze Image
+
                 </button>
+
             </form>
+
         </div>
+
+
+        <!-- ============================== -->
         <!-- RESULT -->
+        <!-- ============================== -->
+
         {% if image_path %}
+
         <div class="result-card">
+
+
+            <!-- UPLOADED IMAGE -->
+
             <h2>Uploaded Image</h2>
+
             <img
                 src="{{ image_path }}"
                 alt="Uploaded Image"
                 class="uploaded-image"
             >
+
+
+            <!-- ML RESULT -->
+
             <h2>ML Result</h2>
+
+
+            <!-- MAIN PREDICTION -->
+
             <div class="prediction">
+
                 🤖 {{ prediction }}
+
             </div>
+
+
+            <!-- CONFIDENCE -->
+
+            {% if prediction %}
+
+            <div class="confidence">
+
+                <h3>
+
+                    Confidence:
+                    {{ "%.2f"|format(confidence) }}%
+
+                </h3>
+
+            </div>
+
+
+            <!-- TOP 3 PREDICTIONS -->
+
+            <div class="top-predictions">
+
+                <h3>Top 3 Predictions</h3>
+
+                {% for item in top_predictions %}
+
+                <p>
+
+                    <strong>{{ item.name }}</strong>
+
+                    — {{ item.confidence }}%
+
+                </p>
+
+                {% endfor %}
+
+            </div>
+
+            {% endif %}
+
+
         </div>
+
         {% endif %}
+
+
     </div>
-    <center><H3 style="font-style: italic;font-family: 'Times New Roman', Times, serif;">MADE BY: HASSAN ZAMAN </H3></center>
+
+
+    <!-- FOOTER -->
+
+    <center>
+
+        <h3
+            style="
+                font-style: italic;
+                font-family: 'Times New Roman', Times, serif;
+            "
+        >
+
+            MADE BY: HASSAN ZAMAN
+
+        </h3>
+
+    </center>
+
+
 </body>
+
 </html>
