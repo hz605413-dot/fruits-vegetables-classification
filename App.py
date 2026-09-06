@@ -1,15 +1,18 @@
 #cd "C:\Users\hz605\OneDrive\Desktop\ML PROJECT"
 #py App.py          py -3.12 App.py
-
-from flask import Flask, render_template, request, url_for
 import os
-import uuid
+
+# Force TensorFlow to use CPU only on Render
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+
+from flask import Flask, render_template, request
 import numpy as np
 import tensorflow as tf
-
 from tensorflow.keras.utils import load_img, img_to_array
 from tensorflow.keras.applications import mobilenet_v2
 from werkzeug.utils import secure_filename
+
 
 
 # ==================================================
